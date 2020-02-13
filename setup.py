@@ -11,5 +11,7 @@ setup(
         'numpy',
         'matplotlib',
         'scipy',
+        'pandas',
+        'sklearn',
     ],
 )
