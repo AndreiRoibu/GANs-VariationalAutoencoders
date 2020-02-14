@@ -13,5 +13,8 @@ setup(
         'scipy',
         'pandas',
         'sklearn',
+        'tensorflow',
+        'theano',
+        
     ],
 )
