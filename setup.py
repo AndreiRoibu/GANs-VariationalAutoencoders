@@ -15,7 +15,7 @@ setup(
         'sklearn',
         'tensorflow',
         'theano',
-        'pep8',
+        'autopep8',
         'pylint',
     ],
 )
