@@ -26,27 +26,27 @@ def leakyReLU(x, alpha=0.2):
 class ConvLayer:
     """ Class defining a convolutional layer
     """
-    def __init__(self, name, Min, Mout, apply_batch_norm, filterSize = 5, stride = 2, activation_function = tf.nn.relu):
+    def __init__(self, layer_name, Min, Mout, apply_batch_norm, filterSize = 5, stride = 2, activation_function = tf.nn.relu):
         """Constructor class for the Conv layer
-        name = layer name
+        layer_name = layer layer_name
         Min = number of input feature maps
         Mout = number of output feature maps
         apply_batch_norm = flag if to apply batch norm
         """
         self.W = tf.get_variable(
-            "W_%s" % name,
+            "W_%s" % layer_name,
             shape = (filterSize, Min, Mout),
             # initializer=tf.contrib.layers.xavier_initializer(),
             initializer=tf.truncated_normal_initializer(stddev=0.02),
         )
 
         self.b = tf.get_variable(
-            "b_%s" % name,
+            "b_%s" % layer_name,
             shape = (Mout, ),
-            initializer= tf.zero_initializer()
+            initializer= tf.zeros_initializer()
         )
 
-        self.name = name
+        self.layer_name = layer_name
         self.activation_function = activation_function
         self.stride = stride
         self.apply_batch_norm = apply_batch_norm
@@ -76,7 +76,7 @@ class ConvLayer:
                 scale = True, 
                 is_training = is_training,
                 reuse = reuse,
-                scope = self.name
+                scope = self.layer_name
             )
         
         return self.activation_function(convolution_output)
@@ -84,9 +84,9 @@ class ConvLayer:
 class FractionallyStridedConvLayer:
     """ Class defining a fractionally strided convolution layer
     """ 
-    def __init__(self, name, Min, Mout, output_shape, apply_batch_norm, filterSize = 5, stride = 2, activation_function = tf.nn.relu):
+    def __init__(self, layer_name, Min, Mout, output_shape, apply_batch_norm, filterSize = 5, stride = 2, activation_function = tf.nn.relu):
         """Constructor class for the Conv layer
-        name = layer name
+        layer_name = layer layer_name
         Min = number of input feature maps
         Mout = number of output feature maps
         apply_batch_norm = flag if to apply batch norm
@@ -96,19 +96,19 @@ class FractionallyStridedConvLayer:
         """
 
         self.W = tf.get_variable(
-            "W_%s" % name,
+            "W_%s" % layer_name,
             shape = (filterSize, Min, Mout),
             # initializer=tf.contrib.layers.xavier_initializer(),
             initializer=tf.truncated_normal_initializer(stddev=0.02),
         )
 
         self.b = tf.get_variable(
-            "b_%s" % name,
+            "b_%s" % layer_name,
             shape = (Mout, ),
-            initializer= tf.zero_initializer()
+            initializer= tf.zeros_initializer()
         )
 
-        self.name = name
+        self.layer_name = layer_name
         self.activation_function = activation_function
         self.stride = stride
         self.apply_batch_norm = apply_batch_norm
@@ -124,7 +124,7 @@ class FractionallyStridedConvLayer:
         convolution_output = tf.nn.conv2d_transpose(
             value = X,
             filter = self.W,
-            output_shape= = self.output_shape
+            output_shape = self.output_shape,
             strides = [1, self.stride, self.stride, 1],
         )
 
@@ -139,7 +139,7 @@ class FractionallyStridedConvLayer:
                 scale = True, 
                 is_training = is_training,
                 reuse = reuse,
-                scope = self.name
+                scope = self.layer_name
             )
         
         return self.activation_function(convolution_output)        
@@ -147,24 +147,24 @@ class FractionallyStridedConvLayer:
 class DenseLayer(object):
     """ This represents the Dense Layer class
     """
-    def __init__(self, name, M1, M2, apply_batch_norm, activation_function = tf.nn.relu):
+    def __init__(self, layer_name, M1, M2, apply_batch_norm, activation_function = tf.nn.relu):
         """ Constructor function
         """
         self.W = tf.get_variable(
-            "W_%s" % name,
-            shape = (filterSize, Min, Mout),
+            "W_%s" % layer_name,
+            shape = (M1, M2),
             # initializer=tf.contrib.layers.xavier_initializer(),
             initializer=tf.truncated_normal_initializer(stddev=0.02),
         )
 
         self.b = tf.get_variable(
-            "b_%s" % name,
-            shape = (Mout, ),
-            initializer= tf.zero_initializer()
+            "b_%s" % layer_name,
+            shape = (M2, ),
+            initializer= tf.zeros_initializer()
         )
 
         self.activation_function = activation_function
-        self.name = name
+        self.layer_name = layer_name
         self.apply_batch_norm = apply_batch_norm
         self.params = [self.W, self.b]
 
@@ -174,7 +174,7 @@ class DenseLayer(object):
         reuse = reuse flag
         is_training = flag showing is this is a training or testing operation
         """
-        a = tf.matmult(X, self.W) + self.b
+        a = tf.matmul(X, self.W) + self.b
 
         if self.apply_batch_norm:
             a =tf.contrib.layers.batch_norm(
@@ -185,15 +185,143 @@ class DenseLayer(object):
                 scale = True, 
                 is_training = is_training,
                 reuse = reuse,
-                scope = self.name
+                scope = self.layer_name
             )
 
         return self.activation_function(a)
 
 class DCGAN:
     """This represents the DCGAN class
-    """"
-    def __init__():
+    """
+    def __init__(self, image_lenght, number_colors, discriminator_sizes, generator_sizes):
+        """ This is the constructor, where most of the work in this class will be based
+        """
+
+        # First, save the inputs for later
+        self.image_lenght = image_lenght
+        self.number_colors = number_colors
+        self.latent_dimension = generator_sizes['z']
+
+        # Define the input data (assume square images)
+        self.X = tf.placeholder(
+            tf.float32,
+            shape = (None, image_lenght, image_lenght, number_colors),
+            name = 'X'
+        )
+
+        self.Z = tf.placeholder(
+            tf.float32,
+            shape = (None, self.latent_dimension),
+            name = 'Z'
+        )
+
+        self.batch_size = tf.placeholder(
+            tf.int32,
+            shape = (),
+            name = 'batch_size'
+        )
+
+        # After building the inputs, we build the discrimator and the generator
+
+        logits = self.build_discriminator(self.X, discriminator_sizes)
+
+        self.sample_images = self.build_generator(self.Z, generator_sizes)
+
+    # ===========
+    # This is where we construct the helper functions
+
+    def build_discriminator(self, X, discriminator_sizes):
+        """ This function constructs the discriminator network
+        """
+        with tf.variable_scope('discriminator') as scope:
+            # Build the conv layers:
+            self.discriminator_convlayers = []
+            Min = self.number_colors
+            image_size = self.image_lenght
+            count = 0
+            for Mout, filter_size, stride, apply_batch_norm in discriminator_sizes['conv_layers']:
+                layer_name = "convlayer_%s" % count
+                count += 1
+                conv_layer = ConvLayer(layer_name, Min, Mout, apply_batch_norm, filter_size, stride, activation_function=leakyReLU)
+                self.discriminator_convlayers.append(conv_layer)
+                Min = Mout
+                image_size = int(np.ceil(float(image_size) / stride))
+
+            # Build the dense layers:
+            Min_dense_layer = Min * image_size * image_size
+            self.discriminator_denselayers = []
+            for Mout, apply_batch_norm in discriminator_sizes['dense_layers']:
+                layer_name = "denselayer_%s" % count
+                count += 1
+                dense_layer = DenseLayer(layer_name, Min_dense_layer, Mout, apply_batch_norm, activation_function= leakyReLU)
+                Min_dense_layer = Mout
+                self.discriminator_denselayers.append(dense_layer)
+
+            # Build the logistic layer
+            layer_name = "denselayer_%s" % count
+            self.discriminator_logisticlayer = DenseLayer(layer_name, Min_dense_layer, 1, False, lambda x: x)
+
+            # Get the logits:
+            logits = self.discriminator_forward(X)
+
+            return logits
+        
+    def discriminator_forward(self, X, reuse = None, is_training = True):
+        """ This function performs a forward step through the discriminator
+        """
+        discriminator_output = X
+        for layer in self.discriminator_convlayers:
+            discriminator_output = layer.forward(discriminator_output, reuse, is_training)
+        discriminator_output = tf.contrib.layers.flatten(discriminator_output)
+
+        for layer in self.discriminator_denselayers:
+            discriminator_output = layer.forward(discriminator_output, reuse, is_training)
+        logits = self.discriminator_logisticlayer.forward(discriminator_output, reuse, is_training)
+
+        return logits
+    
+    def build_generator(self, Z, generator_sizes):
+        """ This function constructs the generator network
+        """
+        with tf.variable_scope("generator") as scope:
+
+            
+
+
+
+            # Build the conv layers:
+            self.discriminator_convlayers = []
+            Min = self.number_colors
+            image_size = self.image_lenght
+            count = 0
+            for Mout, filter_size, stride, apply_batch_norm in discriminator_sizes['conv_layers']:
+                layer_name = "convlayer_%s" % count
+                count += 1
+                conv_layer = ConvLayer(layer_name, Min, Mout, apply_batch_norm, filter_size, stride, activation_function=leakyReLU)
+                self.discriminator_convlayers.append(conv_layer)
+                Min = Mout
+                image_size = int(np.ceil(float(image_size) / stride))
+
+            # Build the dense layers:
+            Min_dense_layer = Min * image_size * image_size
+            self.discriminator_denselayers = []
+            for Mout, apply_batch_norm in discriminator_sizes['dense_layers']:
+                layer_name = "denselayer_%s" % count
+                count += 1
+                dense_layer = DenseLayer(layer_name, Min_dense_layer, Mout, apply_batch_norm, activation_function= leakyReLU)
+                Min_dense_layer = Mout
+                self.discriminator_denselayers.append(dense_layer)
+
+            # Build the logistic layer
+            layer_name = "denselayer_%s" % count
+            self.discriminator_logisticlayer = DenseLayer(layer_name, Min_dense_layer, 1, False, lambda x: x)
+
+            # Get the logits:
+            logits = self.discriminator_forward(X)
+
+            return logits
+
+
 
 def mnist():
     """ Function that loads MNIST, reshapes it to TF desired input (hight, width, color)
