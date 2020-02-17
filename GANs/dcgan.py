@@ -284,8 +284,9 @@ class DCGAN:
         """ This function constructs the generator network
         """
         with tf.variable_scope("generator") as scope:
+            # Determine size of data at each step
+            data_dimension = 
 
-            
 
 
 
