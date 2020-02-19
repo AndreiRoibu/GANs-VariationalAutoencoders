@@ -15,7 +15,9 @@ setup(
         'sklearn',
         'tensorflow',
         'theano',
-        'autopep8',
-        'pylint',
+        # 'autopep8',
+        # 'pylint',
+        'imageio',
+        'natsort',
     ],
 )
