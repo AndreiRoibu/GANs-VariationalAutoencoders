@@ -468,17 +468,15 @@ class DCGAN:
             for j in range(number_batches):
                 t0 = datetime.now()
 
-                # if type(X[0]) is str:
-                #     # This means it is a large dataset
-                #     batch = utils.files2images(
-                #         X[j * batch_size: (j+1) * batch_size]
-                #     )
-                # else:
-                #     # is MNIST data
-                #     batch = X[j * batch_size: (j+1) * batch_size]
-
-                batch = X[j * batch_size: (j+1) * batch_size]
-                
+                if type(X[0]) is str:
+                    # This means it is a large dataset
+                    batch = utils.files2images(
+                        X[j * batch_size: (j+1) * batch_size]
+                    )
+                else:
+                    # is MNIST data
+                    batch = X[j * batch_size: (j+1) * batch_size]
+               
                 # We generate a random Z from a uniform distribution
                 Z = np.random.uniform(-1, 1, size = (batch_size, self.latent_dimension))
 
@@ -538,9 +536,6 @@ class DCGAN:
                                 flat_uniform_image[i*dimension:(i+1)*dimension, j*dimension:(j+1)*dimension] = uniform_samples[k]
                                 k += 1
 
-                    # plt.clf()
-                    # plt.title('Sample at iter {}'.format(iters))
-                    # plt.savefig('samples/sample_plt_at_iter{}.png'.format(iters))
 
                     sp.misc.imsave(
                         'samples/'+name+'_random_samples_at_iter_%d.png' % iters,
@@ -624,49 +619,52 @@ def mnist():
 
     utils.make_gif(name)
 
-# def mnist():
-#     """ Function that loads MNIST, reshapes it to TF desired input (hight, width, color)
-#     Then, the function defines the shape of the discriminator and generator
-#     """
+def celeb():
+    """ Function that loads Celeb data, reshapes it to TF desired input (hight, width, color)
+    Then, the function defines the shape of the discriminator and generator
+    """
 
-#     X, _ = utils.load_MNIST()
-#     X = X.reshape(len(X), 28, 28, 1)
-#     dimensions = X.shape[1] # Assumes images are square - uses only 1 dimension
-#     colors = X.shape[-1]
+    # This just gets a list of filenames to be loaded in dynamically due to their large number and size
+    X = utils.load_Celeb()
 
-#     # Hyperparamters gathered from other official implementations that worked! Selected with hyper param optimisation techniques
+    dimensions = 64 # Assumes images are square - uses only 1 dimension
+    colors = 3
 
-#     # Hyperparameter keys: 
-#     # conv layer: (feature maps, filter size, stride=2, batch norm used?)
-#     # dense layer: (hidden units, batch norm used?)
-#     discriminator_sizes = {
-#         'conv_layers': [(2, 5, 2, False), (64, 5, 2, True)],
-#         'dense_layers': [(1024, True)]
-#     }
+    # Hyperparamters gathered from other official implementations that worked! Selected with hyper param optimisation techniques
 
-#     # Hyperparameter keys: 
-#     # z : latent variable dimensionality (drawing uniform random samples from it)
-#     # projection: initial number of feature maps (flat vector -> 3D image!)
-#     # batchNorm_after_projection: flag, showing, if we want to use batchnorm after projecting the flat vector
-#     # conv layer: (feature maps, filter size, stride=2, batch norm used?)
-#     # dense layer: (hidden units, batch norm used?)
-#     # output_action: activation function - using sigmoid since MNIST varies between {0, 1}
-#     generator_sizes = {
-#         'z' : 100,
-#         'projection' : 128,
-#         'batchNorm_after_projection': False,
-#         'conv_layers': [(128, 5, 2, True), (colors, 5, 2, False)],
-#         'dense_layers': [(1024, True)],
-#         'output_activation': tf.sigmoid,
-#     }
+    # Hyperparameter keys: 
+    # conv layer: (feature maps, filter size, stride=2, batch norm used?)
+    # dense layer: (hidden units, batch norm used?)
+    discriminator_sizes = {
+        'conv_layers': [(64, 5, 2, False), (128, 5, 2, True), (256, 5, 2, True), (512, 5, 2, True)],
+        'dense_layers': []
+    }
 
-#     # Create the DCGAN and fit it to the images
-#     name = 'MNIST'
-#     GAN = DCGAN(dimensions, colors, discriminator_sizes, generator_sizes)
-#     GAN.fit(X, name)
+    # Hyperparameter keys: 
+    # z : latent variable dimensionality (drawing uniform random samples from it)
+    # projection: initial number of feature maps (flat vector -> 3D image!)
+    # batchNorm_after_projection: flag, showing, if we want to use batchnorm after projecting the flat vector
+    # conv layer: (feature maps, filter size, stride=2, batch norm used?)
+    # dense layer: (hidden units, batch norm used?)
+    # output_action: activation function - using sigmoid since the Celeb data is scaled between {-1, 1} - This is recommended by GAN researchers 
+    generator_sizes = {
+        'z' : 100,
+        'projection' : 512,
+        'batchNorm_after_projection': True,
+        'conv_layers': [(256, 5, 2, True), (128, 5, 2, True), (64, 5, 2, True), (colors, 5, 2, False)],
+        'dense_layers': [(1024, True)],
+        'output_activation': tf.tanh,
+    }
 
-#     utils.make_gif(name)
+    # Create the DCGAN and fit it to the images
+    name = 'Celeb'
+    GAN = DCGAN(dimensions, colors, discriminator_sizes, generator_sizes)
+    GAN.fit(X, name)
+
+    utils.make_gif(name)
 
 
 if __name__ == '__main__':
     mnist()
+    # celeb()
+    
