@@ -19,5 +19,6 @@ setup(
         # 'pylint',
         'imageio',
         'natsort',
+        'tqdm',
     ],
 )
