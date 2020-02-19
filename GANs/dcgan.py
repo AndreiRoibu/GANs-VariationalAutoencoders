@@ -6,6 +6,8 @@ import tensorflow as tf
 # import tensorflow-gpu as tf
 import matplotlib.pyplot as plt
 from datetime import datetime
+import glob
+import imageio
 
 # First, we define some hyperparameters (borrowed from other research)
 learning_rate = 0.0002
@@ -18,6 +20,8 @@ save_sample_period = 50
 # Script can stall during training, while it waits for user to close plots (GANs take long to train)
 if not os.path.exists('samples'):
     os.mkdir('samples')
+if not os.path.exists('uniform_samples'):
+    os.mkdir('uniform_samples')
 
 def leakyReLU(x, alpha=0.2):
     """Function defining the leaky relu operation\
@@ -438,7 +442,7 @@ class DCGAN:
 
         return output
 
-    def fit(self, X):
+    def fit(self, X, name):
         """This is the function which fits the model
         When fitting, we do 1 iteration of gradient descent on the discriminator, and 2 iterationg of gradient descenet on the generator
         This is done to prevent the discriminator from learning too fast (it's accuracy increasing too much)
@@ -455,6 +459,8 @@ class DCGAN:
         number_batches = number_inputs // batch_size
         iters = 0
         current_directory = os.path.dirname(os.path.realpath(__file__))
+
+        Z_uniform = np.random.uniform(-1, 1, size = (64, self.latent_dimension))
 
         for i in range(epochs):
             print("---------- EPOCH {} ----------".format(i))
@@ -500,7 +506,7 @@ class DCGAN:
                 print("batch: %d/%d - dt: %s - disc_acc: %.2f" % (j+1, number_batches, datetime.now() - t0, discriminator_accuracy))
 
                 if j % 100 == 0:
-                    save_path = self.saver.save(self.sess, current_directory + "/models/dcgan.ckpt")
+                    save_path = self.saver.save(self.sess, current_directory + "/models/"+name+"/dcgan.ckpt")
                     print("Model saved in path: %s" % save_path)
 
                 # Periodicaly, save images:
@@ -508,16 +514,20 @@ class DCGAN:
                 if iters % save_sample_period == 0:
                     print("Saving a sample...")
                     samples = self.sample(64) # shape is (64, D, D, color channel) - sample function defined below!
+                    uniform_samples = self.uniform_sample(64, Z_uniform)
                     dimension = self.image_lenght
 
                     if samples.shape[-1] == 1: # i.e if color ==1 , we want a 2D image NxN
                         samples = samples.reshape(64, dimension, dimension)
+                        uniform_samples = uniform_samples.reshape(64, dimension, dimension)
                         flat_image = np.empty((8*dimension, 8*dimension))
+                        flat_uniform_image = np.empty((8*dimension, 8*dimension))
 
                         k = 0
                         for i in range(8):
                             for j in range(8):
                                 flat_image[i*dimension:(i+1)*dimension, j*dimension:(j+1)*dimension] = samples[k].reshape(dimension, dimension)
+                                flat_uniform_image[i*dimension:(i+1)*dimension, j*dimension:(j+1)*dimension] = uniform_samples[k].reshape(dimension, dimension)
                                 k += 1
                     else:
                         flat_image = np.empty((8*dimension, 8*dimension, 3)) # we want an image with 3 color channels
@@ -525,6 +535,7 @@ class DCGAN:
                         for i in range(8):
                             for j in range(8):
                                 flat_image[i*dimension:(i+1)*dimension, j*dimension:(j+1)*dimension] = samples[k]
+                                flat_uniform_image[i*dimension:(i+1)*dimension, j*dimension:(j+1)*dimension] = uniform_samples[k]
                                 k += 1
 
                     # plt.clf()
@@ -532,11 +543,17 @@ class DCGAN:
                     # plt.savefig('samples/sample_plt_at_iter{}.png'.format(iters))
 
                     sp.misc.imsave(
-                        'samples/samples_at_iter_%d.png' % iters,
+                        'samples/'+name+'_random_samples_at_iter_%d.png' % iters,
                         flat_image,
                     )
 
+                    sp.misc.imsave(
+                        'uniform_samples/'+name+'_uniform_samples_at_iter_%d.png' % iters,
+                        flat_uniform_image,
+                    )
 
+
+        save_path = self.saver.save(self.sess, current_directory + "/models/"+name+"/dcgan.ckpt")
         save_path = self.saver.save(self.sess, current_directory + "/models/dcgan.ckpt")
         print("Model saved in path: %s" % save_path)
         
@@ -544,10 +561,10 @@ class DCGAN:
         plt.plot(discriminator_costs, label = 'Discriminator Cost')
         plt.plot(generator_costs, label= 'Generator Cost')
         plt.legend()
-        plt.title("Training Costs")
+        plt.title("Training Costs for "+name)
         plt.xlabel('Iterations')
         plt.ylabel('Costs')
-        plt.savefig('cost_vs_iteration.png')
+        plt.savefig(name+'_cost_vs_iteration.png')
 
     def sample(self, n):
         """ This function runs the sample_image_test function and generates samples
@@ -556,12 +573,20 @@ class DCGAN:
         samples = self.sess.run(self.sample_images_test, feed_dict = {self.Z: Z, self.batch_size: n})
         return samples
 
+    def uniform_sample(self, n, Z_uniform):
+        """ This function runs the sample_image_test function and generates samples
+        However, this sample keeps the seed constant, meaning that the same images are generated each time
+        """
+        uniform_samples = self.sess.run(self.sample_images_test, feed_dict = {self.Z: Z_uniform, self.batch_size: n})
+        return uniform_samples
+
+
 def mnist():
     """ Function that loads MNIST, reshapes it to TF desired input (hight, width, color)
     Then, the function defines the shape of the discriminator and generator
     """
 
-    X, Y = utils.load_MNIST()
+    X, _ = utils.load_MNIST()
     X = X.reshape(len(X), 28, 28, 1)
     dimensions = X.shape[1] # Assumes images are square - uses only 1 dimension
     colors = X.shape[-1]
@@ -593,9 +618,55 @@ def mnist():
     }
 
     # Create the DCGAN and fit it to the images
+    name = 'MNIST'
     GAN = DCGAN(dimensions, colors, discriminator_sizes, generator_sizes)
-    GAN.fit(X)
-    # samples = GAN.sample(1)
+    GAN.fit(X, name)
+
+    utils.make_gif(name)
+
+# def mnist():
+#     """ Function that loads MNIST, reshapes it to TF desired input (hight, width, color)
+#     Then, the function defines the shape of the discriminator and generator
+#     """
+
+#     X, _ = utils.load_MNIST()
+#     X = X.reshape(len(X), 28, 28, 1)
+#     dimensions = X.shape[1] # Assumes images are square - uses only 1 dimension
+#     colors = X.shape[-1]
+
+#     # Hyperparamters gathered from other official implementations that worked! Selected with hyper param optimisation techniques
+
+#     # Hyperparameter keys: 
+#     # conv layer: (feature maps, filter size, stride=2, batch norm used?)
+#     # dense layer: (hidden units, batch norm used?)
+#     discriminator_sizes = {
+#         'conv_layers': [(2, 5, 2, False), (64, 5, 2, True)],
+#         'dense_layers': [(1024, True)]
+#     }
+
+#     # Hyperparameter keys: 
+#     # z : latent variable dimensionality (drawing uniform random samples from it)
+#     # projection: initial number of feature maps (flat vector -> 3D image!)
+#     # batchNorm_after_projection: flag, showing, if we want to use batchnorm after projecting the flat vector
+#     # conv layer: (feature maps, filter size, stride=2, batch norm used?)
+#     # dense layer: (hidden units, batch norm used?)
+#     # output_action: activation function - using sigmoid since MNIST varies between {0, 1}
+#     generator_sizes = {
+#         'z' : 100,
+#         'projection' : 128,
+#         'batchNorm_after_projection': False,
+#         'conv_layers': [(128, 5, 2, True), (colors, 5, 2, False)],
+#         'dense_layers': [(1024, True)],
+#         'output_activation': tf.sigmoid,
+#     }
+
+#     # Create the DCGAN and fit it to the images
+#     name = 'MNIST'
+#     GAN = DCGAN(dimensions, colors, discriminator_sizes, generator_sizes)
+#     GAN.fit(X, name)
+
+#     utils.make_gif(name)
+
 
 if __name__ == '__main__':
     mnist()
