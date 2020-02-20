@@ -13,7 +13,7 @@ import imageio
 learning_rate = 0.0002
 beta1 = 0.5
 batch_size = 64
-epochs = 2
+epochs = 3
 save_sample_period = 50
 
 # Make a samples folde, for saving the output samples
@@ -529,6 +529,7 @@ class DCGAN:
                                 k += 1
                     else:
                         flat_image = np.empty((8*dimension, 8*dimension, 3)) # we want an image with 3 color channels
+                        flat_uniform_image = np.empty((8*dimension, 8*dimension, 3)) # we want an image with 3 color channels
                         k = 0
                         for i in range(8):
                             for j in range(8):
@@ -665,6 +666,6 @@ def celeb():
 
 
 if __name__ == '__main__':
-    mnist()
-    # celeb()
+    # mnist()
+    celeb()
     
