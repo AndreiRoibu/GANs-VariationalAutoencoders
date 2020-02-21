@@ -653,7 +653,7 @@ def celeb():
         'projection' : 512,
         'batchNorm_after_projection': True,
         'conv_layers': [(256, 5, 2, True), (128, 5, 2, True), (64, 5, 2, True), (colors, 5, 2, False)],
-        'dense_layers': [(1024, True)],
+        'dense_layers': [],
         'output_activation': tf.tanh,
     }
 
